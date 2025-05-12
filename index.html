@@ -3,11 +3,108 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PokeAPI-POO</title>
-    <link rel="stylesheet" href="./assets/styles.css" />
+    <title>Pokédex - Generación Kanto</title>
+    <link rel="stylesheet" href="css/styles.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
-    <h1>Aplicación PokeAPI</h1>
-    <script src="./assets/main.js"></script>
+    <header>
+      <div class="logo-container">
+        <img src="assets/images/pokeball.png" alt="Pokéball" class="logo" />
+        <h1>Pokédex</h1>
+      </div>
+      <div class="filters">
+        <input type="text" id="search" placeholder="Busca un Pokémon..." />
+        <select id="type-filter">
+          <option value="all">Todos los tipos</option>
+          <option value="normal">Normal</option>
+          <option value="fire">Fuego</option>
+          <option value="water">Agua</option>
+          <option value="electric">Eléctrico</option>
+          <option value="grass">Planta</option>
+          <option value="ice">Hielo</option>
+          <option value="fighting">Lucha</option>
+          <option value="poison">Veneno</option>
+          <option value="ground">Tierra</option>
+          <option value="flying">Volador</option>
+          <option value="psychic">Psíquico</option>
+          <option value="bug">Bicho</option>
+          <option value="rock">Roca</option>
+          <option value="ghost">Fantasma</option>
+          <option value="dragon">Dragón</option>
+          <option value="dark">Siniestro</option>
+          <option value="steel">Acero</option>
+          <option value="fairy">Hada</option>
+        </select>
+      </div>
+    </header>
+
+    <main>
+      <div class="pokedex-container" id="pokedex">
+        <!-- Las tarjetas de Pokémon se insertarán aquí con JavaScript -->
+      </div>
+
+      <div class="pagination">
+        <button id="prev">Anterior</button>
+        <span id="page-info">Página 1 de 8</span>
+        <button id="next">Siguiente</button>
+      </div>
+    </main>
+
+    <footer>
+      <p>Mostrando los primeros 151 Pokémon de la región Kanto</p>
+    </footer>
+
+    <!-- Modal para detalles -->
+    <div class="modal" id="modal">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <div class="modal-body" id="modal-body">
+          <!-- Contenido del modal se insertará aquí -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Botón para activar la vista Pokédex -->
+    <button id="pokedex-view" class="pokedex-view-btn">
+      <img src="assets/images/pokedex.png" alt="Vista Pokédex" />
+    </button>
+
+    <!-- Vista Pokédex clásica -->
+    <div class="pokedex-view">
+      <div class="pokedex-container-view">
+        <img src="#" alt="pokemon" class="pokemon-display" />
+        <h1 class="pokemon-info">
+          <span class="pokemon-number-view"></span> -
+          <span class="pokemon-name-view"></span>
+        </h1>
+        <form class="pokedex-form">
+          <input
+            type="search"
+            class="pokedex-input"
+            placeholder="Nombre o Número"
+            required
+          />
+        </form>
+        <div class="pokedex-buttons">
+          <button class="pokedex-button btn-prev-view">Anterior &lt;</button>
+          <button class="pokedex-button btn-next-view">Siguiente &gt;</button>
+        </div>
+        <img
+          src="assets/images/pokedex.png"
+          alt="pokedex"
+          class="pokedex-img"
+        />
+      </div>
+    </div>
+
+    <script src="js/script.js"></script>
   </body>
 </html>
