@@ -1,18 +1,11 @@
 document.addEventListener("DOMContentLoaded", () => {
+  // Elementos del DOM
   const pokedex = document.getElementById("pokedex");
   const searchInput = document.getElementById("search");
   const typeFilter = document.getElementById("type-filter");
-  const pokedexViewBtn = document.getElementById("pokedex-view");
+  const toggleViewBtn = document.getElementById("toggle-view");
+  const viewIcon = document.getElementById("view-icon");
   const pokedexView = document.querySelector(".pokedex-view");
-
-  // Variables globales
-  let currentPage = 1;
-  const pokemonPerPage = 20;
-  let allPokemon = [];
-  let filteredPokemon = [];
-  let currentPokemonId = 1;
-
-  // Elementos de la vista Pokédex
   const pokemonDisplay = document.querySelector(".pokemon-display");
   const pokemonNameView = document.querySelector(".pokemon-name-view");
   const pokemonNumberView = document.querySelector(".pokemon-number-view");
@@ -20,17 +13,37 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnPrevView = document.querySelector(".btn-prev-view");
   const btnNextView = document.querySelector(".btn-next-view");
 
+  // Variables de estado
+  let currentPage = 1;
+  const pokemonPerPage = 20;
+  let allPokemon = [];
+  let filteredPokemon = [];
+  let currentPokemonId = 1;
+  let isPokedexViewActive = false;
+
+  // Inicializar la aplicación
+  const init = async () => {
+    await fetchPokemon();
+    setupEventListeners();
+  };
+
   // Cargar los primeros 151 Pokémon
   const fetchPokemon = async () => {
     try {
+      showLoading(true);
       const promises = [];
+
       for (let i = 1; i <= 151; i++) {
         const url = `https://pokeapi.co/api/v2/pokemon/${i}`;
-        promises.push(fetch(url).then((res) => res.json()));
+        promises.push(
+          fetch(url)
+            .then((res) => res.json())
+            .catch(() => null) // Manejar errores individuales
+        );
       }
 
       const results = await Promise.all(promises);
-      allPokemon = results.map((data) => ({
+      allPokemon = results.filter(Boolean).map((data) => ({
         id: data.id,
         name: data.name,
         image:
@@ -50,20 +63,152 @@ document.addEventListener("DOMContentLoaded", () => {
 
       filteredPokemon = [...allPokemon];
       displayPage(currentPage);
-      setupPagination();
-
-      // Manejar búsqueda
-      searchInput.addEventListener("input", handleSearch);
-
-      // Manejar filtro por tipo
-      typeFilter.addEventListener("change", handleTypeFilter);
-
-      // Configurar vista Pokédex
-      setupPokedexView();
+      showPokemonInView(1); // Cargar primer Pokémon en la vista Pokédex
     } catch (error) {
       console.error("Error fetching Pokémon data:", error);
-      pokedex.innerHTML = `<p class="error">Error al cargar los Pokémon. Intenta recargar la página.</p>`;
+      showError("Error al cargar los Pokémon. Intenta recargar la página.");
+    } finally {
+      showLoading(false);
     }
+  };
+
+  // Configurar event listeners
+  const setupEventListeners = () => {
+    // Búsqueda y filtrado
+    searchInput.addEventListener("input", handleSearch);
+    typeFilter.addEventListener("change", handleTypeFilter);
+
+    // Paginación
+    document.getElementById("prev").addEventListener("click", () => {
+      if (currentPage > 1) {
+        currentPage--;
+        displayPage(currentPage);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    });
+
+    document.getElementById("next").addEventListener("click", () => {
+      if (currentPage < Math.ceil(filteredPokemon.length / pokemonPerPage)) {
+        currentPage++;
+        displayPage(currentPage);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    });
+
+    // Vista Pokédex
+    toggleViewBtn.addEventListener("click", togglePokedexView);
+    pokedexView.addEventListener("click", (e) => {
+      if (e.target === pokedexView) {
+        togglePokedexView();
+      }
+    });
+
+    document.querySelector(".pokedex-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const inputValue = pokedexInput.value.trim();
+      if (inputValue) {
+        showPokemonInView(inputValue);
+      }
+    });
+
+    btnPrevView.addEventListener("click", () => navigatePokemon(-1));
+    btnNextView.addEventListener("click", () => navigatePokemon(1));
+  };
+
+  // Alternar entre vistas
+  const togglePokedexView = () => {
+    isPokedexViewActive = !isPokedexViewActive;
+
+    if (isPokedexViewActive) {
+      pokedexView.classList.add("active");
+      viewIcon.src = "assets/images/pokeball.png";
+      viewIcon.alt = "Vista Principal";
+      document.body.style.overflow = "hidden";
+    } else {
+      pokedexView.classList.remove("active");
+      viewIcon.src = "assets/images/pokedex.png";
+      viewIcon.alt = "Vista Pokédex";
+      document.body.style.overflow = "";
+    }
+  };
+
+  // Navegación en la vista Pokédex
+  const navigatePokemon = (direction) => {
+    const newId = currentPokemonId + direction;
+    if (newId >= 1 && newId <= 151) {
+      currentPokemonId = newId;
+      showPokemonInView(currentPokemonId);
+    }
+  };
+
+  // Mostrar Pokémon en la vista Pokédex
+  const showPokemonInView = async (idOrName) => {
+    try {
+      pokemonNameView.textContent = "Cargando...";
+      pokemonNumberView.textContent = "";
+      pokemonDisplay.style.display = "none";
+
+      // Buscar en datos ya cargados primero
+      let pokemon = allPokemon.find(
+        (p) =>
+          p.id === parseInt(idOrName) ||
+          p.name === idOrName.toString().toLowerCase()
+      );
+
+      // Si no se encuentra en datos cargados, hacer fetch
+      if (!pokemon) {
+        const response = await fetch(
+          `https://pokeapi.co/api/v2/pokemon/${idOrName}`
+        );
+        if (!response.ok) throw new Error("Pokémon no encontrado");
+
+        const data = await response.json();
+        pokemon = {
+          id: data.id,
+          name: data.name,
+          image:
+            data.sprites.other["official-artwork"].front_default ||
+            data.sprites.front_default,
+          animatedImage:
+            data.sprites.versions?.["generation-v"]?.["black-white"]?.animated
+              ?.front_default,
+        };
+      }
+
+      // Actualizar vista
+      currentPokemonId = pokemon.id;
+      pokemonNameView.textContent = pokemon.name;
+      pokemonNumberView.textContent = pokemon.id;
+
+      // Cargar imagen (intentar animada primero, luego estática)
+      const imageUrl = pokemon.animatedImage || pokemon.image;
+      loadImageWithFallback(pokemonDisplay, imageUrl, pokemon.image);
+
+      pokedexInput.value = "";
+    } catch (error) {
+      console.error("Error loading Pokémon:", error);
+      pokemonNameView.textContent = "No encontrado";
+      pokemonNumberView.textContent = "";
+      pokemonDisplay.style.display = "none";
+    }
+  };
+
+  // Cargar imagen con fallback
+  const loadImageWithFallback = (imgElement, primarySrc, fallbackSrc) => {
+    imgElement.style.display = "none";
+    imgElement.onerror = null;
+
+    const tryFallback = () => {
+      if (primarySrc !== fallbackSrc) {
+        imgElement.src = fallbackSrc;
+      } else {
+        imgElement.style.display = "none";
+      }
+    };
+
+    imgElement.onerror = tryFallback;
+    imgElement.src = primarySrc;
+    imgElement.style.display = "block";
   };
 
   // Mostrar Pokémon en tarjetas
@@ -71,30 +216,30 @@ document.addEventListener("DOMContentLoaded", () => {
     const pokemonHTMLString = pokemonList
       .map(
         (poke) => `
-                <div class="pokemon-card" onclick="showPokemonDetails(${
-                  poke.id
-                })">
-                    <img class="pokemon-image" src="${poke.image}" alt="${
+            <div class="pokemon-card" onclick="showPokemonDetails(${poke.id})">
+                <img class="pokemon-image" src="${poke.image}" alt="${
           poke.name
-        }"/>
-                    <h2 class="pokemon-name">${poke.name}</h2>
-                    <p class="pokemon-id">#${poke.id
-                      .toString()
-                      .padStart(3, "0")}</p>
-                    <div class="pokemon-types">
-                        ${poke.types
-                          .map(
-                            (type) =>
-                              `<span class="type ${type}">${type}</span>`
-                          )
-                          .join("")}
-                    </div>
+        }" 
+                     onerror="this.src='assets/images/pokeball.png'">
+                <h2 class="pokemon-name">${poke.name}</h2>
+                <p class="pokemon-id">#${poke.id
+                  .toString()
+                  .padStart(3, "0")}</p>
+                <div class="pokemon-types">
+                    ${poke.types
+                      .map(
+                        (type) => `<span class="type ${type}">${type}</span>`
+                      )
+                      .join("")}
                 </div>
-            `
+            </div>
+        `
       )
       .join("");
 
-    pokedex.innerHTML = pokemonHTMLString || `<p>No se encontraron Pokémon</p>`;
+    pokedex.innerHTML =
+      pokemonHTMLString ||
+      `<p class="no-results">No se encontraron Pokémon</p>`;
   };
 
   // Mostrar página específica
@@ -116,25 +261,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("next").disabled =
       page === Math.ceil(filteredPokemon.length / pokemonPerPage) ||
       filteredPokemon.length <= pokemonPerPage;
-  };
-
-  // Configurar paginación
-  const setupPagination = () => {
-    document.getElementById("prev").addEventListener("click", () => {
-      if (currentPage > 1) {
-        currentPage--;
-        displayPage(currentPage);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
-    });
-
-    document.getElementById("next").addEventListener("click", () => {
-      if (currentPage < Math.ceil(filteredPokemon.length / pokemonPerPage)) {
-        currentPage++;
-        displayPage(currentPage);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
-    });
   };
 
   // Manejar búsqueda
@@ -162,112 +288,35 @@ document.addEventListener("DOMContentLoaded", () => {
     displayPage(currentPage);
   };
 
-  // Configurar vista Pokédex
-  const setupPokedexView = () => {
-    // Mostrar primer Pokémon al cargar
-    showPokemonInView(currentPokemonId);
-
-    // Event listeners para la vista Pokédex
-    pokedexViewBtn.addEventListener("click", () => {
-      pokedexView.classList.add("active");
-      showPokemonInView(currentPokemonId);
-    });
-
-    pokedexView.addEventListener("click", (e) => {
-      if (e.target === pokedexView) {
-        pokedexView.classList.remove("active");
-      }
-    });
-
-    document.querySelector(".pokedex-form").addEventListener("submit", (e) => {
-      e.preventDefault();
-      const inputValue = pokedexInput.value.trim();
-      if (inputValue) {
-        showPokemonInView(inputValue.toLowerCase());
-      }
-    });
-
-    btnPrevView.addEventListener("click", () => {
-      if (currentPokemonId > 1) {
-        currentPokemonId--;
-        showPokemonInView(currentPokemonId);
-      }
-    });
-
-    btnNextView.addEventListener("click", () => {
-      if (currentPokemonId < 151) {
-        currentPokemonId++;
-        showPokemonInView(currentPokemonId);
-      }
-    });
-  };
-
-  // Mostrar Pokémon en la vista Pokédex
-  const showPokemonInView = async (id) => {
-    try {
-      pokemonNameView.textContent = "Loading...";
-      pokemonNumberView.textContent = "";
-
-      // Buscar en los datos ya cargados primero
-      const existingPokemon = allPokemon.find(
-        (p) => p.id === parseInt(id) || p.name === id.toLowerCase()
-      );
-
-      if (existingPokemon) {
-        pokemonDisplay.style.display = "block";
-        pokemonNameView.textContent = existingPokemon.name;
-        pokemonNumberView.textContent = existingPokemon.id;
-        pokemonDisplay.src =
-          existingPokemon.animatedImage || existingPokemon.image;
-        currentPokemonId = existingPokemon.id;
-        return;
-      }
-
-      // Si no está en los datos cargados, hacer fetch
-      const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
-      const data = await response.json();
-
-      if (data) {
-        pokemonDisplay.style.display = "block";
-        pokemonNameView.textContent = data.name;
-        pokemonNumberView.textContent = data.id;
-
-        // Usar sprite animado si está disponible, si no, usar el normal
-        const animatedSprite =
-          data.sprites.versions?.["generation-v"]?.["black-white"]?.animated
-            ?.front_default;
-        pokemonDisplay.src =
-          animatedSprite ||
-          data.sprites.other["official-artwork"].front_default ||
-          data.sprites.front_default;
-
-        currentPokemonId = data.id;
-      } else {
-        pokemonDisplay.style.display = "none";
-        pokemonNameView.textContent = "No encontrado :c";
-        pokemonNumberView.textContent = "";
-      }
-    } catch (error) {
-      console.error("Error loading Pokémon:", error);
-      pokemonDisplay.style.display = "none";
-      pokemonNameView.textContent = "Error al cargar";
-      pokemonNumberView.textContent = "";
+  // Mostrar estado de carga
+  const showLoading = (isLoading) => {
+    if (isLoading) {
+      pokedex.innerHTML = `<div class="loading">Cargando Pokémon...</div>`;
     }
   };
 
+  // Mostrar error
+  const showError = (message) => {
+    pokedex.innerHTML = `<p class="error">${message}</p>`;
+  };
+
   // Iniciar la aplicación
-  fetchPokemon();
+  init();
 });
 
-// Mostrar detalles del Pokémon (función global para que funcione con onclick)
+// Mostrar detalles del Pokémon (función global)
 window.showPokemonDetails = async (id) => {
   try {
-    const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
-    const data = await response.json();
-
     const modal = document.getElementById("modal");
     const modalBody = document.getElementById("modal-body");
 
+    modalBody.innerHTML = `<div class="loading">Cargando detalles...</div>`;
+    modal.style.display = "block";
+
+    const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
+    if (!response.ok) throw new Error("Pokémon no encontrado");
+
+    const data = await response.json();
     const types = data.types.map((type) => type.type.name);
     const stats = data.stats.map((stat) => ({
       name: stat.stat.name.replace("-", " "),
@@ -278,7 +327,9 @@ window.showPokemonDetails = async (id) => {
             <img class="pokemon-image" src="${
               data.sprites.other["official-artwork"].front_default ||
               data.sprites.front_default
-            }" alt="${data.name}"/>
+            }" alt="${
+      data.name
+    }" onerror="this.src='assets/images/pokeball.png'">
             <h2>${data.name}</h2>
             <p class="pokemon-id">#${data.id.toString().padStart(3, "0")}</p>
             <div class="pokemon-types">
@@ -301,37 +352,27 @@ window.showPokemonDetails = async (id) => {
                 ${stats
                   .map(
                     (stat) => `
-                        <div class="stat-row">
-                            <div class="stat-name">${stat.name}:</div>
-                            <div class="stat-value">
-                                <div class="stat-bar">
-                                    <div class="stat-bar-fill" style="width: ${Math.min(
-                                      100,
-                                      stat.value
-                                    )}%"></div>
-                                </div>
-                                <span>${stat.value}</span>
+                    <div class="stat-row">
+                        <div class="stat-name">${stat.name}:</div>
+                        <div class="stat-value">
+                            <div class="stat-bar">
+                                <div class="stat-bar-fill" style="width: ${Math.min(
+                                  100,
+                                  stat.value
+                                )}%"></div>
                             </div>
+                            <span>${stat.value}</span>
                         </div>
-                    `
+                    </div>
+                `
                   )
                   .join("")}
             </div>
         `;
-
-    modal.style.display = "block";
-
-    // Cerrar modal
-    document.querySelector(".close").onclick = () => {
-      modal.style.display = "none";
-    };
-
-    window.onclick = (event) => {
-      if (event.target === modal) {
-        modal.style.display = "none";
-      }
-    };
   } catch (error) {
     console.error("Error fetching Pokémon details:", error);
+    document.getElementById("modal-body").innerHTML = `
+            <p class="error">Error al cargar los detalles del Pokémon</p>
+        `;
   }
 };
