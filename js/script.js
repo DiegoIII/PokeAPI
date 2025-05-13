@@ -309,9 +309,20 @@ window.showPokemonDetails = async (id) => {
   try {
     const modal = document.getElementById("modal");
     const modalBody = document.getElementById("modal-body");
+    const closeBtn = document.querySelector(".close"); // Seleccionar el botón de cerrar
 
     modalBody.innerHTML = `<div class="loading">Cargando detalles...</div>`;
     modal.style.display = "block";
+    document.body.style.overflow = "hidden";
+
+    // Configurar el evento de cerrar
+    closeBtn.onclick = function () {
+      modal.style.display = "none";
+      document.body.style.overflow = "";
+    };
+
+    modal.style.display = "block";
+    document.body.style.overflow = "hidden";
 
     const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
     if (!response.ok) throw new Error("Pokémon no encontrado");
@@ -323,56 +334,119 @@ window.showPokemonDetails = async (id) => {
       value: stat.base_stat,
     }));
 
+    // Nuevo diseño del modal
     modalBody.innerHTML = `
-            <img class="pokemon-image" src="${
-              data.sprites.other["official-artwork"].front_default ||
-              data.sprites.front_default
-            }" alt="${
-      data.name
-    }" onerror="this.src='assets/images/pokeball.png'">
-            <h2>${data.name}</h2>
-            <p class="pokemon-id">#${data.id.toString().padStart(3, "0")}</p>
-            <div class="pokemon-types">
-                ${types
-                  .map((type) => `<span class="type ${type}">${type}</span>`)
-                  .join("")}
+      <div style="display: flex; flex-direction: column; align-items: center;">
+        <img class="pokemon-image animate__animated animate__bounceIn" 
+             src="${
+               data.sprites.other["official-artwork"].front_default ||
+               data.sprites.front_default
+             }" 
+             alt="${data.name}" 
+             onerror="this.src='assets/images/pokeball.png'"
+             style="width: 180px; height: 180px; margin-bottom: 1.5rem;">
+        
+        <div class="animate__animated animate__fadeIn" style="text-align: center;">
+          <h2 class="animate__animated animate__fadeInDown">${data.name}</h2>
+          <p class="pokemon-id animate__animated animate__fadeIn">#${data.id
+            .toString()
+            .padStart(3, "0")}</p>
+          <div class="pokemon-types animate__animated animate__fadeIn">
+            ${types
+              .map((type) => `<span class="type ${type}">${type}</span>`)
+              .join("")}
+          </div>
+        </div>
+        
+        <div class="pokemon-details animate__animated animate__fadeInUp">
+          <div>
+            <p><strong>Altura:</strong> ${(data.height / 10).toFixed(1)} m</p>
+            <p><strong>Peso:</strong> ${(data.weight / 10).toFixed(1)} kg</p>
+          </div>
+          <div>
+            <p><strong>Habilidades:</strong> ${data.abilities
+              .map((a) => a.ability.name.replace("-", " "))
+              .join(", ")}</p>
+          </div>
+        </div>
+        
+        <div class="pokemon-stats animate__animated animate__fadeIn">
+          <h3>Estadísticas base</h3>
+          ${stats
+            .map(
+              (stat) => `
+            <div class="stat-row">
+              <div class="stat-name">${stat.name}:</div>
+              <div class="stat-value">
+                <div class="stat-bar">
+                  <div class="stat-bar-fill" style="width: 0%" data-value="${stat.value}"></div>
+                </div>
+                <span>${stat.value}</span>
+              </div>
             </div>
-            
-            <div class="pokemon-details">
-                <p><strong>Altura:</strong> ${(data.height / 10).toFixed(
-                  1
-                )} m</p>
-                <p><strong>Peso:</strong> ${(data.weight / 10).toFixed(
-                  1
-                )} kg</p>
-            </div>
-            
-            <div class="pokemon-stats">
-                <h3>Estadísticas base</h3>
-                ${stats
-                  .map(
-                    (stat) => `
-                    <div class="stat-row">
-                        <div class="stat-name">${stat.name}:</div>
-                        <div class="stat-value">
-                            <div class="stat-bar">
-                                <div class="stat-bar-fill" style="width: ${Math.min(
-                                  100,
-                                  stat.value
-                                )}%"></div>
-                            </div>
-                            <span>${stat.value}</span>
-                        </div>
-                    </div>
-                `
-                  )
-                  .join("")}
-            </div>
-        `;
+          `
+            )
+            .join("")}
+        </div>
+      </div>
+    `;
+
+    // Animación de las barras de estadísticas
+    setTimeout(() => {
+      document.querySelectorAll(".stat-bar-fill").forEach((bar) => {
+        const value = bar.getAttribute("data-value");
+        bar.style.width = `${Math.min(100, value)}%`;
+      });
+    }, 100);
   } catch (error) {
     console.error("Error fetching Pokémon details:", error);
-    document.getElementById("modal-body").innerHTML = `
-            <p class="error">Error al cargar los detalles del Pokémon</p>
-        `;
+    modalBody.innerHTML = `
+      <div class="error animate__animated animate__shakeX" style="text-align: center; padding: 2rem;">
+        <p style="color: var(--primary-color); font-weight: bold; font-size: 1.2rem;">
+          Error al cargar los detalles del Pokémon
+        </p>
+        <button onclick="document.getElementById('modal').style.display = 'none'" 
+                style="margin-top: 1rem; padding: 0.5rem 1rem; background: var(--primary-color); 
+                color: white; border: none; border-radius: 5px; cursor: pointer;">
+          Cerrar
+        </button>
+      </div>
+    `;
   }
 };
+
+// Cierra el modal al hacer clic fuera del contenido
+document.getElementById("modal").addEventListener("click", function (e) {
+  if (e.target === this) {
+    this.style.display = "none";
+    document.body.style.overflow = "";
+  }
+});
+
+// Cierra el modal con la tecla ESC
+document.addEventListener("keydown", function (e) {
+  if (
+    e.key === "Escape" &&
+    document.getElementById("modal").style.display === "block"
+  ) {
+    document.getElementById("modal").style.display = "none";
+    document.body.style.overflow = "";
+  }
+});
+
+// Cerrar modal al hacer clic fuera del contenido
+document.getElementById("modal").addEventListener("click", function (e) {
+  if (e.target === this) {
+    this.style.display = "none";
+    document.body.style.overflow = "";
+  }
+});
+
+// Cerrar modal con la tecla ESC
+document.addEventListener("keydown", function (e) {
+  const modal = document.getElementById("modal");
+  if (e.key === "Escape" && modal.style.display === "block") {
+    modal.style.display = "none";
+    document.body.style.overflow = "";
+  }
+});
